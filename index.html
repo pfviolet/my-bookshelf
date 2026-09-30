@@ -248,8 +248,42 @@ body {
   border-radius: 6px; position: relative; cursor: default;
   min-height: 40px;
 }
+.cal-day { cursor: pointer; }
+.cal-day:empty { cursor: default; }
 .cal-day.today { font-weight: 700; color: var(--accent); }
-.cal-day.has-reading { background: var(--accent-soft); cursor: pointer; }
+.cal-day.has-reading { background: var(--accent-soft); }
+.day-book-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-input); margin-bottom: 8px;
+}
+.day-book-item img {
+  width: 36px; height: 52px; object-fit: cover; border-radius: 3px; flex-shrink: 0;
+}
+.day-book-item .placeholder-cover {
+  width: 36px; height: 52px; border-radius: 3px; flex-shrink: 0;
+  background: var(--accent-soft); display: flex; align-items: center;
+  justify-content: center; font-size: 1rem;
+}
+.day-book-info { flex: 1; min-width: 0; }
+.day-book-info .title { font-size: 0.85rem; font-weight: 500; }
+.day-book-info .author { font-size: 0.75rem; color: var(--fg-secondary); }
+.day-book-add, .day-book-remove {
+  border: none; border-radius: 50%; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1rem; flex-shrink: 0; transition: background var(--transition);
+}
+.day-book-add { background: var(--accent-soft); color: var(--accent); }
+.day-book-add:hover { background: var(--accent); color: var(--accent-text); }
+.day-book-remove { background: transparent; color: var(--fg-muted); font-size: 0.85rem; }
+.day-book-remove:hover { background: var(--bg-hover); color: var(--accent); }
+.day-section-label {
+  font-size: 0.75rem; font-weight: 600; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin: 16px 0 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.day-section-label:first-child { margin-top: 0; }
 .cal-day-covers {
   display: flex; gap: 1px; justify-content: center; margin-top: 1px;
 }
@@ -616,6 +650,17 @@ body {
   </div>
 </div>
 
+<!-- Day Reading Modal -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="dayModalTitle">독서 기록</span>
+      <button class="modal-close" onclick="closeModal('dayModal')">✕</button>
+    </div>
+    <div class="modal-body" id="dayModalBody"></div>
+  </div>
+</div>
+
 <!-- Book Detail Modal -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal">
@@ -718,15 +763,25 @@ async function loadReadingBooks() {
 async function checkInToday(bookId) {
   if (!db) return;
   const today = todayStr();
-  const docId = `${bookId}_${today}`;
+  await checkInDate(bookId, today);
+}
+
+async function checkInDate(bookId, dateStr) {
+  if (!db) return;
+  const docId = `${bookId}_${dateStr}`;
   await db.collection('readings').doc(docId).set({
-    bookId, date: today,
+    bookId, date: dateStr,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  // Update book's updatedAt
   await db.collection('books').doc(bookId).update({
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
+}
+
+async function removeReading(bookId, dateStr) {
+  if (!db) return;
+  const docId = `${bookId}_${dateStr}`;
+  await db.collection('readings').doc(docId).delete();
 }
 
 async function isCheckedInToday(bookId) {
@@ -1198,7 +1253,7 @@ async function renderCalendar() {
     }
 
     html += `<div class="cal-day ${isToday ? 'today' : ''} ${hasReading ? 'has-reading' : ''}"
-                  ${hasReading ? `onclick="showDayBooks('${dateStr}')"` : ''}>
+                  onclick="openDayModal('${dateStr}')">
       ${d}${coversHtml}
     </div>`;
   }
@@ -1211,12 +1266,101 @@ function changeMonth(delta) {
   renderCalendar();
 }
 
-function showDayBooks(dateStr) {
-  // Simple toast showing books read on that day
-  const readingDocs = Object.values(booksCache);
-  // We need to check which books were read on this date
-  // For simplicity, show a toast. For a richer view, open detail modal.
-  showToast(`${formatDateKR(dateStr)}의 독서 기록을 확인해보세요`);
+async function openDayModal(dateStr) {
+  document.getElementById('dayModalTitle').textContent = `${formatDateKR(dateStr)} 독서 기록`;
+  const body = document.getElementById('dayModalBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('dayModal').classList.add('open');
+
+  try {
+    // Load readings for this date
+    const snap = await db.collection('readings')
+      .where('date', '==', dateStr)
+      .get();
+    const readBookIds = new Set(snap.docs.map(d => d.data().bookId));
+
+    let html = '';
+
+    // Section 1: Books read on this day
+    if (readBookIds.size > 0) {
+      html += '<div class="day-section-label">이 날 읽은 책</div>';
+      readBookIds.forEach(bookId => {
+        const book = booksCache[bookId];
+        if (!book) return;
+        html += `
+          <div class="day-book-item">
+            ${book.thumbnail
+              ? `<img src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'placeholder-cover\\'>📕</div>'">`
+              : '<div class="placeholder-cover">📕</div>'}
+            <div class="day-book-info">
+              <div class="title">${escapeHtml(book.title)}</div>
+              <div class="author">${escapeHtml(book.author || '')}</div>
+            </div>
+            <button class="day-book-remove" onclick="removeDayReading('${bookId}','${dateStr}')" title="삭제">✕</button>
+          </div>`;
+      });
+    }
+
+    // Section 2: Add a book to this day
+    const allBooks = Object.values(booksCache)
+      .filter(b => !readBookIds.has(b.id))
+      .sort((a, b) => {
+        const order = { reading: 0, want: 1, finished: 2, stopped: 3 };
+        return (order[a.status]||4) - (order[b.status]||4);
+      });
+
+    if (allBooks.length > 0) {
+      html += '<div class="day-section-label">책 추가하기</div>';
+      allBooks.forEach(book => {
+        html += `
+          <div class="day-book-item">
+            ${book.thumbnail
+              ? `<img src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'placeholder-cover\\'>📕</div>'">`
+              : '<div class="placeholder-cover">📕</div>'}
+            <div class="day-book-info">
+              <div class="title">${escapeHtml(book.title)}</div>
+              <div class="author">${escapeHtml(book.author || '')}</div>
+            </div>
+            <button class="day-book-add" onclick="addDayReading('${book.id}','${dateStr}')" title="추가">+</button>
+          </div>`;
+      });
+    }
+
+    if (!html) {
+      html = '<div class="empty-state"><div class="empty-state-text">등록된 책이 없어요.<br>먼저 책을 등록해주세요.</div></div>';
+    }
+
+    body.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오기 실패</div></div>';
+  }
+}
+
+async function addDayReading(bookId, dateStr) {
+  try {
+    await checkInDate(bookId, dateStr);
+    showToast('추가 완료! ✓');
+    await openDayModal(dateStr); // refresh modal
+    await renderCalendar();
+    await renderStats();
+  } catch (e) {
+    console.error(e);
+    showToast('추가 실패');
+  }
+}
+
+async function removeDayReading(bookId, dateStr) {
+  try {
+    await removeReading(bookId, dateStr);
+    showToast('삭제됨');
+    await openDayModal(dateStr); // refresh modal
+    await renderCalendar();
+    await renderStats();
+  } catch (e) {
+    console.error(e);
+    showToast('삭제 실패');
+  }
 }
 
 // ══════════════════════════════════════════════
