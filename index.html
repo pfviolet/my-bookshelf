@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="내 서재">
 <meta name="theme-color" content="#faf7f4">
 <title>내 서재</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -562,7 +567,7 @@ body {
         <div class="stat-value" id="statYearDays">0</div>
         <div class="stat-label">올해 독서일</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" onclick="openFinishedList()" style="cursor:pointer">
         <div class="stat-icon">✅</div>
         <div class="stat-value" id="statFinished">0</div>
         <div class="stat-label">완독</div>
@@ -780,7 +785,25 @@ async function checkInDate(bookId, dateStr) {
 
 async function removeReading(bookId, dateStr) {
   if (!db) return;
+  // Delete by known doc ID format first
   const docId = `${bookId}_${dateStr}`;
+  const knownDoc = await db.collection('readings').doc(docId).get();
+  if (knownDoc.exists) {
+    await db.collection('readings').doc(docId).delete();
+    return;
+  }
+  // Fallback: find any reading doc matching bookId + date
+  const snap = await db.collection('readings')
+    .where('bookId', '==', bookId)
+    .where('date', '==', dateStr)
+    .get();
+  if (!snap.empty) {
+    await snap.docs[0].ref.delete(); // delete just one
+  }
+}
+
+async function removeReadingById(docId) {
+  if (!db) return;
   await db.collection('readings').doc(docId).delete();
 }
 
@@ -1277,15 +1300,17 @@ async function openDayModal(dateStr) {
     const snap = await db.collection('readings')
       .where('date', '==', dateStr)
       .get();
-    const readBookIds = new Set(snap.docs.map(d => d.data().bookId));
+    // Keep each reading doc individually (to handle duplicates)
+    const readingDocs = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+    const readBookIds = new Set(readingDocs.map(d => d.bookId));
 
     let html = '';
 
-    // Section 1: Books read on this day
-    if (readBookIds.size > 0) {
+    // Section 1: Books read on this day (each reading entry shown individually)
+    if (readingDocs.length > 0) {
       html += '<div class="day-section-label">이 날 읽은 책</div>';
-      readBookIds.forEach(bookId => {
-        const book = booksCache[bookId];
+      readingDocs.forEach(reading => {
+        const book = booksCache[reading.bookId];
         if (!book) return;
         html += `
           <div class="day-book-item">
@@ -1296,7 +1321,7 @@ async function openDayModal(dateStr) {
               <div class="title">${escapeHtml(book.title)}</div>
               <div class="author">${escapeHtml(book.author || '')}</div>
             </div>
-            <button class="day-book-remove" onclick="removeDayReading('${bookId}','${dateStr}')" title="삭제">✕</button>
+            <button class="day-book-remove" onclick="removeDayReadingById('${reading.docId}','${dateStr}')" title="삭제">✕</button>
           </div>`;
       });
     }
@@ -1313,7 +1338,8 @@ async function openDayModal(dateStr) {
       html += '<div class="day-section-label">책 추가하기</div>';
       allBooks.forEach(book => {
         html += `
-          <div class="day-book-item">
+          <div class="day-book-item" oncontextmenu="event.preventDefault();showBookDeleteConfirm('${book.id}')"
+               data-longpress-book="${book.id}">
             ${book.thumbnail
               ? `<img src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'placeholder-cover\\'>📕</div>'">`
               : '<div class="placeholder-cover">📕</div>'}
@@ -1331,6 +1357,17 @@ async function openDayModal(dateStr) {
     }
 
     body.innerHTML = html;
+
+    // Setup long-press for book deletion on mobile
+    body.querySelectorAll('[data-longpress-book]').forEach(el => {
+      let timer;
+      const bookId = el.dataset.longpressBook;
+      el.addEventListener('touchstart', (e) => {
+        timer = setTimeout(() => { showBookDeleteConfirm(bookId); }, 600);
+      }, { passive: true });
+      el.addEventListener('touchend', () => clearTimeout(timer));
+      el.addEventListener('touchmove', () => clearTimeout(timer));
+    });
   } catch (e) {
     console.error(e);
     body.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오기 실패</div></div>';
@@ -1354,12 +1391,65 @@ async function removeDayReading(bookId, dateStr) {
   try {
     await removeReading(bookId, dateStr);
     showToast('삭제됨');
-    await openDayModal(dateStr); // refresh modal
+    await openDayModal(dateStr);
     await renderCalendar();
     await renderStats();
   } catch (e) {
     console.error(e);
     showToast('삭제 실패');
+  }
+}
+
+async function removeDayReadingById(docId, dateStr) {
+  try {
+    await removeReadingById(docId);
+    showToast('삭제됨');
+    await openDayModal(dateStr);
+    await renderCalendar();
+    await renderStats();
+  } catch (e) {
+    console.error(e);
+    showToast('삭제 실패');
+  }
+}
+
+let _dayModalCurrentDate = '';
+async function showBookDeleteConfirm(bookId) {
+  const book = booksCache[bookId];
+  if (!book) return;
+  if (confirm(`"${book.title}" 을(를) 서재에서 완전히 삭제할까요?`)) {
+    try {
+      // Delete all readings for this book
+      const readSnap = await db.collection('readings').where('bookId', '==', bookId).get();
+      const batch = db.batch();
+      readSnap.docs.forEach(d => batch.delete(d.ref));
+      // Delete all notes for this book
+      const noteSnap = await db.collection('notes').where('bookId', '==', bookId).get();
+      noteSnap.docs.forEach(d => batch.delete(d.ref));
+      // Delete the book
+      batch.delete(db.collection('books').doc(bookId));
+      await batch.commit();
+      delete booksCache[bookId];
+      showToast('삭제 완료');
+      // Refresh
+      const dayModal = document.getElementById('dayModal');
+      if (dayModal.classList.contains('open')) {
+        const title = document.getElementById('dayModalTitle').textContent;
+        const match = title.match(/(\d+)월\s*(\d+)일/);
+        if (match) {
+          const yr = calendarDate.getFullYear();
+          const mo = String(match[1]).padStart(2,'0');
+          const dy = String(match[2]).padStart(2,'0');
+          await openDayModal(`${yr}-${mo}-${dy}`);
+        }
+      }
+      await renderCalendar();
+      await renderStats();
+      await renderHome();
+    } catch (e) {
+      console.error(e);
+      showToast('삭제 실패');
+    }
   }
 }
 
@@ -1391,6 +1481,38 @@ async function renderStats() {
   } catch (e) {
     console.error('Stats error:', e);
   }
+}
+
+function openFinishedList() {
+  const finishedBooks = Object.values(booksCache)
+    .filter(b => b.status === 'finished')
+    .sort((a, b) => {
+      const aTime = a.updatedAt?.toDate?.() || new Date(0);
+      const bTime = b.updatedAt?.toDate?.() || new Date(0);
+      return bTime - aTime;
+    });
+
+  document.getElementById('dayModalTitle').textContent = '완독한 책';
+  const body = document.getElementById('dayModalBody');
+
+  if (finishedBooks.length === 0) {
+    body.innerHTML = '<div class="empty-state"><div class="empty-state-text">아직 완독한 책이 없어요.</div></div>';
+  } else {
+    body.innerHTML = finishedBooks.map(book => `
+      <div class="day-book-item" onclick="openBookDetail('${book.id}');closeModal('dayModal')" style="cursor:pointer">
+        ${book.thumbnail
+          ? `<img src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'placeholder-cover\\'>📕</div>'">`
+          : '<div class="placeholder-cover">📕</div>'}
+        <div class="day-book-info">
+          <div class="title">${escapeHtml(book.title)}</div>
+          <div class="author">${escapeHtml(book.author || '')}</div>
+        </div>
+        <span style="font-size:0.7rem;color:var(--tag-finished)">📗</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('dayModal').classList.add('open');
 }
 
 // ══════════════════════════════════════════════
