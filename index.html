@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#faf7f4">
+<title>내 서재</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #faf7f4;
+  --bg-card: #ffffff;
+  --bg-input: #f5f0ec;
+  --bg-hover: #f0ebe6;
+  --fg: #3d3433;
+  --fg-secondary: #8a7e7a;
+  --fg-muted: #b5aaa4;
+  --accent: #c88b8b;
+  --accent-soft: #f3e2dd;
+  --accent-hover: #b37878;
+  --accent-text: #ffffff;
+  --border: #ebe5df;
+  --shadow: 0 2px 12px rgba(60,50,45,0.06);
+  --shadow-lg: 0 8px 32px rgba(60,50,45,0.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --tag-want: #d4b896;
+  --tag-reading: #c88b8b;
+  --tag-finished: #7db87d;
+  --tag-stopped: #a0a0a0;
+  --transition: 0.2s ease;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1615;
+    --bg-card: #252120;
+    --bg-input: #2d2826;
+    --bg-hover: #352f2d;
+    --fg: #e8e0dc;
+    --fg-secondary: #9a908c;
+    --fg-muted: #6a605c;
+    --accent: #d4a0a0;
+    --accent-soft: #3d2a2a;
+    --accent-hover: #e0b5b5;
+    --accent-text: #1a1615;
+    --border: #3a3230;
+    --shadow: 0 2px 12px rgba(0,0,0,0.2);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.3);
+    --tag-want: #c4a876;
+    --tag-reading: #d4a0a0;
+    --tag-finished: #8dc88d;
+    --tag-stopped: #8a8a8a;
+    color-scheme: dark;
+  }
+}
+
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+.header h1 { font-size: 1.2rem; font-weight: 700; }
+.header-actions { display: flex; gap: 8px; }
+.header-btn {
+  width: 36px; height: 36px; border: none; border-radius: 50%;
+  background: var(--bg-input); color: var(--fg); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; transition: background var(--transition);
+}
+.header-btn:hover { background: var(--bg-hover); }
+
+/* ── Main Content ── */
+.main { padding: 20px 20px 100px; max-width: 500px; margin: 0 auto; }
+
+/* ── Current Book Section ── */
+.current-section { text-align: center; margin-bottom: 32px; }
+.current-label {
+  font-size: 0.75rem; font-weight: 500; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+}
+.current-cover-wrap {
+  position: relative; display: inline-block; cursor: pointer;
+  transition: transform var(--transition);
+}
+.current-cover-wrap:active { transform: scale(0.96); }
+.current-cover {
+  width: 140px; height: 200px; object-fit: cover;
+  border-radius: 4px; box-shadow: var(--shadow-lg);
+}
+.current-cover-placeholder {
+  width: 140px; height: 200px; border-radius: 4px;
+  background: var(--bg-input); display: flex; align-items: center;
+  justify-content: center; font-size: 2.5rem; box-shadow: var(--shadow);
+}
+.checkin-badge {
+  position: absolute; top: -8px; right: -8px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--tag-finished); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  animation: popIn 0.3s ease;
+}
+@keyframes popIn {
+  0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); }
+}
+.current-title { font-size: 1.05rem; font-weight: 600; margin-top: 14px; }
+.current-author { font-size: 0.85rem; color: var(--fg-secondary); margin-top: 2px; }
+.checkin-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 14px; padding: 8px 20px;
+  border: 2px solid var(--accent); border-radius: 20px;
+  background: transparent; color: var(--accent);
+  font-size: 0.85rem; font-weight: 500; cursor: pointer;
+  font-family: inherit; transition: all var(--transition);
+}
+.checkin-btn:hover { background: var(--accent-soft); }
+.checkin-btn.checked {
+  background: var(--accent); color: var(--accent-text); border-color: var(--accent);
+}
+
+/* Other reading books */
+.other-reading { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.other-reading-item {
+  width: 40px; height: 58px; border-radius: 3px; object-fit: cover;
+  cursor: pointer; opacity: 0.6; transition: opacity var(--transition);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.other-reading-item:hover { opacity: 1; }
+
+/* ── Note Input Section ── */
+.note-section { margin-top: 24px; }
+.note-group { margin-bottom: 16px; }
+.note-label {
+  font-size: 0.8rem; font-weight: 500; color: var(--fg-secondary);
+  margin-bottom: 6px; display: flex; align-items: center; gap: 4px;
+}
+.note-input-row { display: flex; gap: 8px; }
+.note-input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-input);
+  color: var(--fg); font-family: inherit; font-size: 0.9rem;
+  resize: none; outline: none; transition: border-color var(--transition);
+}
+.note-input:focus { border-color: var(--accent); }
+.note-save-btn {
+  padding: 8px 14px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; white-space: nowrap; transition: background var(--transition);
+}
+.note-save-btn:hover { background: var(--accent-hover); }
+
+/* Status buttons */
+.status-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.status-btn {
+  padding: 6px 16px; border: 1px solid var(--border); border-radius: 16px;
+  background: var(--bg-card); color: var(--fg-secondary);
+  font-family: inherit; font-size: 0.8rem; cursor: pointer;
+  transition: all var(--transition);
+}
+.status-btn:hover { border-color: var(--fg-secondary); }
+
+/* Recent notes */
+.recent-notes { margin-top: 24px; }
+.recent-notes h3 {
+  font-size: 0.8rem; font-weight: 500; color: var(--fg-muted);
+  margin-bottom: 10px; letter-spacing: 0.5px;
+}
+.note-item {
+  padding: 10px 14px; margin-bottom: 8px;
+  background: var(--bg-card); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-soft); font-size: 0.88rem;
+}
+.note-item.thought { border-left-color: var(--tag-want); }
+.note-item-type {
+  font-size: 0.7rem; color: var(--fg-muted); margin-bottom: 2px;
+}
+.note-item-date { font-size: 0.7rem; color: var(--fg-muted); margin-top: 4px; }
+.note-item-text { color: var(--fg); line-height: 1.5; word-break: break-word; }
+.note-delete {
+  float: right; border: none; background: none; color: var(--fg-muted);
+  cursor: pointer; font-size: 0.75rem; padding: 2px 4px;
+}
+.note-delete:hover { color: var(--accent); }
+
+/* ── Empty State ── */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--fg-muted);
+}
+.empty-state-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state-text { font-size: 0.95rem; line-height: 1.6; }
+.empty-state-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 16px; padding: 10px 24px;
+  border: none; border-radius: 20px;
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.9rem; font-weight: 500;
+  cursor: pointer; transition: background var(--transition);
+}
+.empty-state-btn:hover { background: var(--accent-hover); }
+
+/* ── Calendar ── */
+.calendar-section {
+  margin-top: 8px; padding: 20px;
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.calendar-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.calendar-title { font-size: 0.95rem; font-weight: 600; }
+.cal-nav {
+  border: none; background: none; color: var(--fg-secondary);
+  cursor: pointer; font-size: 1rem; padding: 4px 8px;
+  border-radius: 6px; transition: background var(--transition);
+}
+.cal-nav:hover { background: var(--bg-hover); }
+.calendar-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; text-align: center;
+}
+.cal-dow {
+  font-size: 0.7rem; font-weight: 500; color: var(--fg-muted);
+  padding: 4px 0;
+}
+.cal-day {
+  aspect-ratio: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 0.75rem; color: var(--fg-secondary);
+  border-radius: 6px; position: relative; cursor: default;
+  min-height: 40px;
+}
+.cal-day.today { font-weight: 700; color: var(--accent); }
+.cal-day.has-reading { background: var(--accent-soft); cursor: pointer; }
+.cal-day-covers {
+  display: flex; gap: 1px; justify-content: center; margin-top: 1px;
+}
+.cal-day-cover {
+  width: 12px; height: 17px; object-fit: cover; border-radius: 1px;
+}
+
+/* ── Stats ── */
+.stats-section { margin-top: 20px; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat-card {
+  padding: 16px 12px; text-align: center;
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.stat-icon { font-size: 1.3rem; margin-bottom: 4px; }
+.stat-value {
+  font-size: 1.5rem; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.stat-label { font-size: 0.7rem; color: var(--fg-muted); margin-top: 2px; }
+
+/* ── Footer ── */
+.footer {
+  margin-top: 32px; padding-top: 20px;
+  border-top: 1px solid var(--border); text-align: center;
+}
+.footer-btn {
+  border: none; background: none; color: var(--fg-muted);
+  font-family: inherit; font-size: 0.8rem; cursor: pointer;
+  padding: 8px 16px; transition: color var(--transition);
+}
+.footer-btn:hover { color: var(--fg-secondary); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.4); display: none;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  width: 100%; max-width: 500px; max-height: 90vh;
+  background: var(--bg); border-radius: 20px 20px 0 0;
+  overflow-y: auto; animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); } to { transform: translateY(0); }
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+}
+.modal-title { font-size: 1rem; font-weight: 600; }
+.modal-close {
+  border: none; background: none; color: var(--fg-secondary);
+  font-size: 1.3rem; cursor: pointer; padding: 4px;
+}
+.modal-body { padding: 20px; }
+
+/* ── Add Book Modal ── */
+.tab-bar { display: flex; gap: 0; margin-bottom: 20px; }
+.tab-btn {
+  flex: 1; padding: 10px; border: none;
+  background: var(--bg-input); color: var(--fg-secondary);
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; transition: all var(--transition);
+}
+.tab-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.tab-btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.tab-btn.active { background: var(--accent); color: var(--accent-text); }
+
+.search-input-wrap {
+  display: flex; gap: 8px; margin-bottom: 16px;
+}
+.search-input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-input);
+  color: var(--fg); font-family: inherit; font-size: 0.9rem; outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-btn {
+  padding: 10px 16px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.9rem; cursor: pointer;
+}
+
+.search-results { max-height: 300px; overflow-y: auto; }
+.search-result-item {
+  display: flex; gap: 12px; padding: 12px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background var(--transition);
+}
+.search-result-item:hover { background: var(--bg-hover); }
+.search-result-cover {
+  width: 50px; height: 72px; object-fit: cover; border-radius: 3px;
+  flex-shrink: 0; background: var(--bg-input);
+}
+.search-result-info { flex: 1; min-width: 0; }
+.search-result-title {
+  font-size: 0.9rem; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.search-result-author { font-size: 0.8rem; color: var(--fg-secondary); }
+.search-result-pub { font-size: 0.75rem; color: var(--fg-muted); }
+
+/* Manual entry form */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 0.8rem; font-weight: 500;
+  color: var(--fg-secondary); margin-bottom: 6px;
+}
+.form-input {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-input);
+  color: var(--fg); font-family: inherit; font-size: 0.9rem; outline: none;
+}
+.form-input:focus { border-color: var(--accent); }
+
+.cover-upload-area {
+  width: 100px; height: 144px; border: 2px dashed var(--border);
+  border-radius: var(--radius-sm); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; position: relative;
+  overflow: hidden; transition: border-color var(--transition);
+}
+.cover-upload-area:hover { border-color: var(--accent); }
+.cover-upload-area img {
+  width: 100%; height: 100%; object-fit: cover;
+  position: absolute; top: 0; left: 0;
+}
+.cover-upload-icon { font-size: 1.5rem; color: var(--fg-muted); }
+
+.status-select { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.status-option {
+  padding: 6px 14px; border: 1px solid var(--border);
+  border-radius: 16px; font-size: 0.8rem; cursor: pointer;
+  background: var(--bg-card); color: var(--fg-secondary);
+  font-family: inherit; transition: all var(--transition);
+}
+.status-option.selected {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
+}
+
+.submit-btn {
+  width: 100%; padding: 12px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; margin-top: 20px; transition: background var(--transition);
+}
+.submit-btn:hover { background: var(--accent-hover); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Search Bookshelf Modal ── */
+.bookshelf-item {
+  display: flex; gap: 12px; padding: 12px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background var(--transition);
+}
+.bookshelf-item:hover { background: var(--bg-hover); }
+.bookshelf-cover {
+  width: 45px; height: 65px; object-fit: cover;
+  border-radius: 3px; flex-shrink: 0; background: var(--bg-input);
+}
+.bookshelf-info { flex: 1; min-width: 0; }
+.bookshelf-title {
+  font-size: 0.9rem; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bookshelf-author { font-size: 0.8rem; color: var(--fg-secondary); }
+.bookshelf-status {
+  display: inline-block; font-size: 0.65rem; padding: 2px 8px;
+  border-radius: 10px; margin-top: 4px; font-weight: 500;
+}
+.status-want { background: var(--tag-want); color: #fff; }
+.status-reading { background: var(--tag-reading); color: #fff; }
+.status-finished { background: var(--tag-finished); color: #fff; }
+.status-stopped { background: var(--tag-stopped); color: #fff; }
+
+/* ── Book Detail Modal ── */
+.detail-header { text-align: center; margin-bottom: 24px; }
+.detail-cover {
+  width: 120px; height: 172px; object-fit: cover;
+  border-radius: 4px; box-shadow: var(--shadow-lg);
+}
+.detail-title { font-size: 1.1rem; font-weight: 600; margin-top: 14px; }
+.detail-author { font-size: 0.85rem; color: var(--fg-secondary); margin-top: 2px; }
+.detail-status-badge {
+  display: inline-block; font-size: 0.75rem; padding: 3px 10px;
+  border-radius: 12px; margin-top: 8px; font-weight: 500;
+}
+.detail-notes { margin-top: 8px; }
+.detail-notes h3 {
+  font-size: 0.85rem; font-weight: 600; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  padding: 10px 24px; border-radius: 20px;
+  background: var(--fg); color: var(--bg);
+  font-size: 0.85rem; z-index: 300;
+  animation: fadeInOut 2s ease forwards;
+}
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Loading ── */
+.loading { text-align: center; padding: 40px; color: var(--fg-muted); }
+.spinner {
+  width: 28px; height: 28px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Config Banner ── */
+.config-banner {
+  padding: 16px 20px; margin-bottom: 20px;
+  background: var(--accent-soft); border-radius: var(--radius);
+  border: 1px solid var(--accent); font-size: 0.85rem;
+}
+.config-banner code {
+  background: var(--bg-input); padding: 1px 4px; border-radius: 3px;
+  font-size: 0.8rem;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>내 서재</h1>
+  <div class="header-actions">
+    <button class="header-btn" onclick="openSearchModal()" title="내 책장 검색">🔍</button>
+    <button class="header-btn" onclick="openAddModal()" title="책 등록">+</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+  <!-- Config warning (shown until Firebase is configured) -->
+  <div class="config-banner" id="configBanner" style="display:none">
+    ⚠️ Firebase 설정이 필요해요.<br>
+    <code>firebaseConfig</code>와 <code>KAKAO_API_KEY</code>를 설정해주세요.
+  </div>
+
+  <!-- Current Book -->
+  <div id="currentBookSection"></div>
+
+  <!-- Calendar -->
+  <div class="calendar-section" id="calendarSection">
+    <div class="calendar-header">
+      <button class="cal-nav" onclick="changeMonth(-1)">◀</button>
+      <span class="calendar-title" id="calendarTitle"></span>
+      <button class="cal-nav" onclick="changeMonth(1)">▶</button>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-section">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-icon">📖</div>
+        <div class="stat-value" id="statMonthDays">0</div>
+        <div class="stat-label">이번 달 독서일</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value" id="statYearDays">0</div>
+        <div class="stat-label">올해 독서일</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value" id="statFinished">0</div>
+        <div class="stat-label">완독</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <button class="footer-btn" onclick="exportCSV()">📥 데이터 백업 (CSV)</button>
+  </div>
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">책 등록</span>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('search')">검색</button>
+        <button class="tab-btn" onclick="switchTab('manual')">직접 입력</button>
+      </div>
+
+      <!-- Search Tab -->
+      <div id="tabSearch">
+        <div class="search-input-wrap">
+          <input class="search-input" id="kakaoSearchInput" placeholder="책 제목으로 검색" onkeydown="if(event.key==='Enter')searchKakao()">
+          <button class="search-btn" onclick="searchKakao()">검색</button>
+        </div>
+        <div id="kakaoResults" class="search-results"></div>
+      </div>
+
+      <!-- Manual Tab -->
+      <div id="tabManual" style="display:none">
+        <div class="form-group">
+          <label class="form-label">책 표지</label>
+          <div class="cover-upload-area" onclick="document.getElementById('coverFileInput').click()">
+            <span class="cover-upload-icon" id="coverUploadIcon">📷</span>
+            <img id="coverPreview" style="display:none">
+          </div>
+          <input type="file" id="coverFileInput" accept="image/*" style="display:none" onchange="handleCoverUpload(this)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">제목 *</label>
+          <input class="form-input" id="manualTitle" placeholder="책 제목">
+        </div>
+        <div class="form-group">
+          <label class="form-label">저자</label>
+          <input class="form-input" id="manualAuthor" placeholder="저자 이름">
+        </div>
+      </div>
+
+      <!-- Common: Status Selection -->
+      <div class="form-group" id="statusGroup">
+        <label class="form-label">상태</label>
+        <div class="status-select" id="statusSelect">
+          <button class="status-option" data-status="want" onclick="selectStatus(this)">읽고싶은 책</button>
+          <button class="status-option selected" data-status="reading" onclick="selectStatus(this)">읽는 중</button>
+          <button class="status-option" data-status="finished" onclick="selectStatus(this)">다 읽음</button>
+          <button class="status-option" data-status="stopped" onclick="selectStatus(this)">중단</button>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submitBookBtn" onclick="submitBook()">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Search Bookshelf Modal -->
+<div class="modal-overlay" id="searchModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">내 책장 검색</span>
+      <button class="modal-close" onclick="closeModal('searchModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="search-input-wrap">
+        <input class="search-input" id="bookshelfSearchInput" placeholder="제목 또는 저자 검색" oninput="searchBookshelf(this.value)">
+      </div>
+      <div id="bookshelfResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Book Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">독서 기록</span>
+      <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIG — 여기에 본인의 설정을 입력하세요
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyB13AaHOkbDL3RN27cW6aUABRf4vu3bsqU",
+  authDomain: "my-bookshelf-b7c9a.firebaseapp.com",
+  projectId: "my-bookshelf-b7c9a",
+  storageBucket: "my-bookshelf-b7c9a.firebasestorage.app",
+  messagingSenderId: "449016483889",
+  appId: "1:449016483889:web:3f78459d82819f64b24510"
+};
+
+const KAKAO_API_KEY = 'bc1befafd2e16fd9604add40f1405dc4';
+// ══════════════════════════════════════════════
+
+// ── Firebase Init ──
+let db;
+let isConfigured = false;
+try {
+  if (firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    db.enablePersistence().catch(() => {});
+    isConfigured = true;
+  }
+} catch (e) {
+  console.error('Firebase init error:', e);
+}
+
+// ── State ──
+let booksCache = {};
+let currentBook = null;
+let selectedStatus = 'reading';
+let pendingBook = null; // book from kakao search to register
+let uploadedCoverData = null;
+let calendarDate = new Date();
+
+// ── Date Helpers ──
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatDate(d) {
+  if (!d) return '';
+  if (d.toDate) d = d.toDate();
+  if (typeof d === 'string') return d;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatDateKR(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${parseInt(m)}월 ${parseInt(d)}일`;
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+// ══════════════════════════════════════════════
+//  DATA FUNCTIONS
+// ══════════════════════════════════════════════
+
+async function loadAllBooks() {
+  if (!db) return;
+  const snap = await db.collection('books').get();
+  booksCache = {};
+  snap.forEach(doc => { booksCache[doc.id] = { id: doc.id, ...doc.data() }; });
+}
+
+async function loadReadingBooks() {
+  if (!db) return [];
+  const snap = await db.collection('books')
+    .where('status', '==', 'reading')
+    .orderBy('updatedAt', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function checkInToday(bookId) {
+  if (!db) return;
+  const today = todayStr();
+  const docId = `${bookId}_${today}`;
+  await db.collection('readings').doc(docId).set({
+    bookId, date: today,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  // Update book's updatedAt
+  await db.collection('books').doc(bookId).update({
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function isCheckedInToday(bookId) {
+  if (!db) return false;
+  const docId = `${bookId}_${todayStr()}`;
+  const doc = await db.collection('readings').doc(docId).get();
+  return doc.exists;
+}
+
+async function addNote(bookId, type, text) {
+  if (!db || !text.trim()) return;
+  await db.collection('notes').add({
+    bookId, type, text: text.trim(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function deleteNote(noteId) {
+  if (!db) return;
+  await db.collection('notes').doc(noteId).delete();
+}
+
+async function loadBookNotes(bookId) {
+  if (!db) return [];
+  const snap = await db.collection('notes')
+    .where('bookId', '==', bookId)
+    .orderBy('createdAt', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function loadMonthReadings(year, month) {
+  if (!db) return [];
+  const start = `${year}-${String(month).padStart(2,'0')}-01`;
+  const end = `${year}-${String(month).padStart(2,'0')}-31`;
+  const snap = await db.collection('readings')
+    .where('date', '>=', start)
+    .where('date', '<=', end)
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function loadYearReadings(year) {
+  if (!db) return [];
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const snap = await db.collection('readings')
+    .where('date', '>=', start)
+    .where('date', '<=', end)
+    .get();
+  return snap.docs.map(d => d.data());
+}
+
+async function addBook(bookData) {
+  if (!db) return;
+  const doc = await db.collection('books').add({
+    ...bookData,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  booksCache[doc.id] = { id: doc.id, ...bookData };
+  return doc.id;
+}
+
+async function updateBookStatus(bookId, status) {
+  if (!db) return;
+  await db.collection('books').doc(bookId).update({
+    status,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  if (booksCache[bookId]) booksCache[bookId].status = status;
+}
+
+// ══════════════════════════════════════════════
+//  KAKAO API
+// ══════════════════════════════════════════════
+
+async function searchKakao() {
+  const query = document.getElementById('kakaoSearchInput').value.trim();
+  if (!query) return;
+  if (KAKAO_API_KEY === 'YOUR_KAKAO_REST_API_KEY') {
+    showToast('카카오 API 키를 설정해주세요');
+    return;
+  }
+  const container = document.getElementById('kakaoResults');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>검색 중...</div>';
+
+  try {
+    const res = await fetch(`https://dapi.kakao.com/v3/search/book?query=${encodeURIComponent(query)}&size=10`, {
+      headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+    });
+    const data = await res.json();
+    if (!data.documents || data.documents.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-text">검색 결과가 없어요.<br>"직접 입력" 탭에서 등록해보세요.</div></div>';
+      return;
+    }
+    container.innerHTML = data.documents.map((book, i) => `
+      <div class="search-result-item" onclick="selectKakaoBook(${i})">
+        <img class="search-result-cover" src="${book.thumbnail || ''}" alt="" onerror="this.style.display='none'">
+        <div class="search-result-info">
+          <div class="search-result-title">${escapeHtml(book.title)}</div>
+          <div class="search-result-author">${escapeHtml((book.authors||[]).join(', '))}</div>
+          <div class="search-result-pub">${escapeHtml(book.publisher||'')}</div>
+        </div>
+      </div>
+    `).join('');
+    window._kakaoResults = data.documents;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-text">검색 중 오류가 발생했어요.</div></div>';
+    console.error(e);
+  }
+}
+
+function selectKakaoBook(index) {
+  const book = window._kakaoResults[index];
+  pendingBook = {
+    title: book.title,
+    author: (book.authors || []).join(', '),
+    publisher: book.publisher || '',
+    thumbnail: book.thumbnail || '',
+  };
+  // Highlight selected
+  document.querySelectorAll('.search-result-item').forEach((el, i) => {
+    el.style.background = i === index ? 'var(--accent-soft)' : '';
+  });
+  showToast(`"${book.title}" 선택됨`);
+}
+
+// ══════════════════════════════════════════════
+//  IMAGE UPLOAD / COMPRESS
+// ══════════════════════════════════════════════
+
+function handleCoverUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const maxW = 300;
+      const scale = Math.min(maxW / img.width, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      uploadedCoverData = canvas.toDataURL('image/jpeg', 0.7);
+      const preview = document.getElementById('coverPreview');
+      preview.src = uploadedCoverData;
+      preview.style.display = 'block';
+      document.getElementById('coverUploadIcon').style.display = 'none';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ══════════════════════════════════════════════
+//  UI: MODALS
+// ══════════════════════════════════════════════
+
+function openAddModal() {
+  pendingBook = null;
+  uploadedCoverData = null;
+  selectedStatus = 'reading';
+  document.getElementById('kakaoSearchInput').value = '';
+  document.getElementById('kakaoResults').innerHTML = '';
+  document.getElementById('manualTitle').value = '';
+  document.getElementById('manualAuthor').value = '';
+  document.getElementById('coverPreview').style.display = 'none';
+  document.getElementById('coverUploadIcon').style.display = '';
+  document.getElementById('coverFileInput').value = '';
+  document.querySelectorAll('#statusSelect .status-option').forEach(b => {
+    b.classList.toggle('selected', b.dataset.status === 'reading');
+  });
+  switchTab('search');
+  document.getElementById('addModal').classList.add('open');
+}
+
+function openSearchModal() {
+  document.getElementById('bookshelfSearchInput').value = '';
+  showAllBooks();
+  document.getElementById('searchModal').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function switchTab(tab) {
+  document.getElementById('tabSearch').style.display = tab === 'search' ? '' : 'none';
+  document.getElementById('tabManual').style.display = tab === 'manual' ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'search') || (i === 1 && tab === 'manual'));
+  });
+}
+
+function selectStatus(btn) {
+  selectedStatus = btn.dataset.status;
+  document.querySelectorAll('#statusSelect .status-option').forEach(b => {
+    b.classList.toggle('selected', b === btn);
+  });
+}
+
+// ── Submit Book ──
+async function submitBook() {
+  const isSearch = document.getElementById('tabSearch').style.display !== 'none';
+  let bookData;
+
+  if (isSearch) {
+    if (!pendingBook) { showToast('책을 선택해주세요'); return; }
+    bookData = { ...pendingBook, status: selectedStatus };
+  } else {
+    const title = document.getElementById('manualTitle').value.trim();
+    if (!title) { showToast('제목을 입력해주세요'); return; }
+    bookData = {
+      title,
+      author: document.getElementById('manualAuthor').value.trim(),
+      publisher: '',
+      thumbnail: uploadedCoverData || '',
+      status: selectedStatus
+    };
+  }
+
+  const btn = document.getElementById('submitBookBtn');
+  btn.disabled = true;
+  btn.textContent = '등록 중...';
+
+  try {
+    await addBook(bookData);
+    showToast('등록 완료!');
+    closeModal('addModal');
+    await refreshHome();
+  } catch (e) {
+    showToast('등록 실패: ' + e.message);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '등록하기';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UI: HOME
+// ══════════════════════════════════════════════
+
+async function renderHome() {
+  const section = document.getElementById('currentBookSection');
+
+  try {
+    const readingBooks = await loadReadingBooks();
+
+    if (readingBooks.length === 0) {
+      // Check if any books at all
+      const allSnap = await db.collection('books').limit(1).get();
+      if (allSnap.empty) {
+        section.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📚</div>
+            <div class="empty-state-text">첫 번째 책을 등록해보세요!</div>
+            <button class="empty-state-btn" onclick="openAddModal()">+ 책 등록하기</button>
+          </div>`;
+      } else {
+        section.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📖</div>
+            <div class="empty-state-text">지금 읽고 있는 책이 없어요.<br>책을 등록하고 읽기 시작해보세요!</div>
+            <button class="empty-state-btn" onclick="openAddModal()">+ 책 등록하기</button>
+          </div>`;
+      }
+      return;
+    }
+
+    currentBook = readingBooks[0];
+    const checked = await isCheckedInToday(currentBook.id);
+    const recentNotes = await loadBookNotes(currentBook.id);
+    const recent5 = recentNotes.slice(0, 5);
+
+    let otherBooksHtml = '';
+    if (readingBooks.length > 1) {
+      otherBooksHtml = `<div class="other-reading">
+        ${readingBooks.slice(1).map(b => `
+          <img class="other-reading-item" src="${escapeAttr(b.thumbnail)}"
+               alt="${escapeAttr(b.title)}" title="${escapeAttr(b.title)}"
+               onclick="switchCurrentBook('${b.id}')"
+               onerror="this.style.background='var(--bg-input)';this.alt='📕'">
+        `).join('')}
+      </div>`;
+    }
+
+    section.innerHTML = `
+      <div class="current-section">
+        <div class="current-label">지금 읽고 있는 책</div>
+        <div class="current-cover-wrap" onclick="doCheckIn('${currentBook.id}')">
+          ${currentBook.thumbnail
+            ? `<img class="current-cover" src="${escapeAttr(currentBook.thumbnail)}" alt="${escapeAttr(currentBook.title)}" onerror="this.outerHTML='<div class=\\'current-cover-placeholder\\'>📕</div>'">`
+            : '<div class="current-cover-placeholder">📕</div>'}
+          ${checked ? '<div class="checkin-badge">✓</div>' : ''}
+        </div>
+        <div class="current-title">${escapeHtml(currentBook.title)}</div>
+        <div class="current-author">${escapeHtml(currentBook.author || '')}</div>
+
+        <button class="checkin-btn ${checked ? 'checked' : ''}" onclick="doCheckIn('${currentBook.id}')">
+          ${checked ? '✓ 오늘 읽었어요' : '📖 오늘 읽었어요'}
+        </button>
+
+        ${otherBooksHtml}
+
+        <div class="note-section">
+          <div class="note-group">
+            <div class="note-label">📝 마음에 남은 문구</div>
+            <div class="note-input-row">
+              <input class="note-input" id="quoteInput" placeholder="인상 깊은 문구를 적어보세요">
+              <button class="note-save-btn" onclick="saveNote('${currentBook.id}','quote')">저장</button>
+            </div>
+          </div>
+          <div class="note-group">
+            <div class="note-label">💭 떠오르는 생각</div>
+            <div class="note-input-row">
+              <input class="note-input" id="thoughtInput" placeholder="떠오르는 생각을 적어보세요">
+              <button class="note-save-btn" onclick="saveNote('${currentBook.id}','thought')">저장</button>
+            </div>
+          </div>
+
+          <div class="status-actions">
+            <button class="status-btn" onclick="changeBookStatus('${currentBook.id}','finished')">📗 다 읽음</button>
+            <button class="status-btn" onclick="changeBookStatus('${currentBook.id}','stopped')">⏸ 중단</button>
+          </div>
+        </div>
+
+        ${recent5.length > 0 ? `
+          <div class="recent-notes">
+            <h3>최근 기록</h3>
+            ${recent5.map(n => `
+              <div class="note-item ${n.type === 'thought' ? 'thought' : ''}">
+                <button class="note-delete" onclick="removeNote('${n.id}')">삭제</button>
+                <div class="note-item-type">${n.type === 'quote' ? '📝 문구' : '💭 생각'}</div>
+                <div class="note-item-text">${escapeHtml(n.text)}</div>
+                <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>`;
+  } catch (e) {
+    console.error('renderHome error:', e);
+    section.innerHTML = `<div class="empty-state"><div class="empty-state-text">데이터를 불러오는 중 오류가 발생했어요.<br>Firebase 설정을 확인해주세요.</div></div>`;
+  }
+}
+
+async function doCheckIn(bookId) {
+  try {
+    await checkInToday(bookId);
+    showToast('오늘 독서 체크! ✓');
+    await refreshHome();
+  } catch (e) {
+    console.error(e);
+    showToast('체크인 실패');
+  }
+}
+
+async function saveNote(bookId, type) {
+  const inputId = type === 'quote' ? 'quoteInput' : 'thoughtInput';
+  const input = document.getElementById(inputId);
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await addNote(bookId, type, text);
+    input.value = '';
+    showToast('저장 완료!');
+    await renderHome();
+  } catch (e) {
+    console.error(e);
+    showToast('저장 실패');
+  }
+}
+
+async function removeNote(noteId) {
+  if (!confirm('이 기록을 삭제할까요?')) return;
+  try {
+    await deleteNote(noteId);
+    showToast('삭제됨');
+    await renderHome();
+  } catch (e) {
+    console.error(e);
+    showToast('삭제 실패');
+  }
+}
+
+async function changeBookStatus(bookId, status) {
+  const labels = { finished: '다 읽음', stopped: '중단' };
+  if (!confirm(`이 책을 "${labels[status]}"으로 변경할까요?`)) return;
+  try {
+    await updateBookStatus(bookId, status);
+    showToast(`"${labels[status]}"으로 변경됨`);
+    await refreshHome();
+  } catch (e) {
+    console.error(e);
+    showToast('변경 실패');
+  }
+}
+
+async function switchCurrentBook(bookId) {
+  // Move this book to top by updating its updatedAt
+  try {
+    await db.collection('books').doc(bookId).update({
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await refreshHome();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UI: CALENDAR
+// ══════════════════════════════════════════════
+
+async function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth() + 1;
+  document.getElementById('calendarTitle').textContent = `${year}년 ${month}월`;
+
+  const grid = document.getElementById('calendarGrid');
+  const dows = ['일','월','화','수','목','금','토'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = todayStr();
+
+  // Load readings for this month
+  let readings = [];
+  try {
+    readings = await loadMonthReadings(year, month);
+  } catch (e) { console.error(e); }
+
+  // Group by date
+  const readingsByDate = {};
+  readings.forEach(r => {
+    if (!readingsByDate[r.date]) readingsByDate[r.date] = [];
+    readingsByDate[r.date].push(r.bookId);
+  });
+
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="cal-day"></div>';
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === today;
+    const bookIds = readingsByDate[dateStr] || [];
+    const hasReading = bookIds.length > 0;
+
+    let coversHtml = '';
+    if (hasReading) {
+      const uniqueIds = [...new Set(bookIds)];
+      coversHtml = '<div class="cal-day-covers">' +
+        uniqueIds.slice(0, 2).map(id => {
+          const book = booksCache[id];
+          if (book && book.thumbnail) {
+            return `<img class="cal-day-cover" src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.style.display='none'">`;
+          }
+          return '<div class="cal-day-cover" style="background:var(--accent-soft);"></div>';
+        }).join('') +
+        (uniqueIds.length > 2 ? `<span style="font-size:0.55rem;color:var(--fg-muted)">+${uniqueIds.length-2}</span>` : '') +
+        '</div>';
+    }
+
+    html += `<div class="cal-day ${isToday ? 'today' : ''} ${hasReading ? 'has-reading' : ''}"
+                  ${hasReading ? `onclick="showDayBooks('${dateStr}')"` : ''}>
+      ${d}${coversHtml}
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function changeMonth(delta) {
+  calendarDate.setMonth(calendarDate.getMonth() + delta);
+  renderCalendar();
+}
+
+function showDayBooks(dateStr) {
+  // Simple toast showing books read on that day
+  const readingDocs = Object.values(booksCache);
+  // We need to check which books were read on this date
+  // For simplicity, show a toast. For a richer view, open detail modal.
+  showToast(`${formatDateKR(dateStr)}의 독서 기록을 확인해보세요`);
+}
+
+// ══════════════════════════════════════════════
+//  UI: STATS
+// ══════════════════════════════════════════════
+
+async function renderStats() {
+  try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // Month readings
+    const monthReadings = await loadMonthReadings(year, month);
+    const monthDays = new Set(monthReadings.map(r => r.date)).size;
+
+    // Year readings
+    const yearReadings = await loadYearReadings(year);
+    const yearDays = new Set(yearReadings.map(r => r.date)).size;
+
+    // Finished books
+    const finishedSnap = await db.collection('books').where('status', '==', 'finished').get();
+    const finishedCount = finishedSnap.size;
+
+    document.getElementById('statMonthDays').textContent = monthDays;
+    document.getElementById('statYearDays').textContent = yearDays;
+    document.getElementById('statFinished').textContent = finishedCount;
+  } catch (e) {
+    console.error('Stats error:', e);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UI: SEARCH BOOKSHELF
+// ══════════════════════════════════════════════
+
+function showAllBooks() {
+  const books = Object.values(booksCache).sort((a, b) => {
+    const order = { reading: 0, want: 1, finished: 2, stopped: 3 };
+    return (order[a.status]||4) - (order[b.status]||4);
+  });
+  renderBookshelfList(books);
+}
+
+function searchBookshelf(query) {
+  query = query.toLowerCase().trim();
+  if (!query) { showAllBooks(); return; }
+  const books = Object.values(booksCache).filter(b =>
+    (b.title || '').toLowerCase().includes(query) ||
+    (b.author || '').toLowerCase().includes(query)
+  );
+  renderBookshelfList(books);
+}
+
+function renderBookshelfList(books) {
+  const container = document.getElementById('bookshelfResults');
+  if (books.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-text">검색 결과가 없어요.</div></div>';
+    return;
+  }
+  const statusLabels = { want: '읽고싶은', reading: '읽는 중', finished: '다 읽음', stopped: '중단' };
+  container.innerHTML = books.map(b => `
+    <div class="bookshelf-item" onclick="openBookDetail('${b.id}')">
+      ${b.thumbnail
+        ? `<img class="bookshelf-cover" src="${escapeAttr(b.thumbnail)}" alt="" onerror="this.style.background='var(--bg-input)'">`
+        : '<div class="bookshelf-cover" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📕</div>'}
+      <div class="bookshelf-info">
+        <div class="bookshelf-title">${escapeHtml(b.title)}</div>
+        <div class="bookshelf-author">${escapeHtml(b.author || '')}</div>
+        <span class="bookshelf-status status-${b.status}">${statusLabels[b.status] || b.status}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════
+//  UI: BOOK DETAIL
+// ══════════════════════════════════════════════
+
+async function openBookDetail(bookId) {
+  const book = booksCache[bookId];
+  if (!book) return;
+
+  const body = document.getElementById('detailBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('detailModal').classList.add('open');
+
+  try {
+    const notes = await loadBookNotes(bookId);
+    const statusLabels = { want: '읽고싶은 책', reading: '읽는 중', finished: '다 읽음', stopped: '중단' };
+    const statusClass = `status-${book.status}`;
+
+    const quotes = notes.filter(n => n.type === 'quote');
+    const thoughts = notes.filter(n => n.type === 'thought');
+
+    body.innerHTML = `
+      <div class="detail-header">
+        ${book.thumbnail
+          ? `<img class="detail-cover" src="${escapeAttr(book.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'current-cover-placeholder\\' style=\\'width:120px;height:172px\\'>📕</div>'">`
+          : '<div class="current-cover-placeholder" style="width:120px;height:172px;margin:0 auto">📕</div>'}
+        <div class="detail-title">${escapeHtml(book.title)}</div>
+        <div class="detail-author">${escapeHtml(book.author || '')}</div>
+        <span class="detail-status-badge ${statusClass}">${statusLabels[book.status]||book.status}</span>
+      </div>
+
+      ${quotes.length > 0 ? `
+        <div class="detail-notes">
+          <h3>📝 마음에 남은 문구 (${quotes.length})</h3>
+          ${quotes.map(n => `
+            <div class="note-item">
+              <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+              <div class="note-item-text">${escapeHtml(n.text)}</div>
+              <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${thoughts.length > 0 ? `
+        <div class="detail-notes" style="margin-top:20px">
+          <h3>💭 떠오르는 생각 (${thoughts.length})</h3>
+          ${thoughts.map(n => `
+            <div class="note-item thought">
+              <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+              <div class="note-item-text">${escapeHtml(n.text)}</div>
+              <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${quotes.length === 0 && thoughts.length === 0 ? `
+        <div class="empty-state" style="padding:20px">
+          <div class="empty-state-text">아직 기록이 없어요.</div>
+        </div>
+      ` : ''}
+
+      <div class="status-actions" style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+        ${book.status !== 'reading' ? `<button class="status-btn" onclick="changeStatusFromDetail('${bookId}','reading')">📖 읽기 시작</button>` : ''}
+        ${book.status !== 'finished' ? `<button class="status-btn" onclick="changeStatusFromDetail('${bookId}','finished')">📗 다 읽음</button>` : ''}
+        ${book.status !== 'stopped' ? `<button class="status-btn" onclick="changeStatusFromDetail('${bookId}','stopped')">⏸ 중단</button>` : ''}
+        <button class="status-btn" style="color:var(--accent);border-color:var(--accent)" onclick="deleteBook('${bookId}')">🗑 삭제</button>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="empty-state"><div class="empty-state-text">기록을 불러오는 데 실패했어요.</div></div>';
+  }
+}
+
+async function removeNoteAndRefreshDetail(noteId, bookId) {
+  if (!confirm('이 기록을 삭제할까요?')) return;
+  try {
+    await deleteNote(noteId);
+    showToast('삭제됨');
+    await openBookDetail(bookId);
+  } catch (e) {
+    showToast('삭제 실패');
+  }
+}
+
+async function changeStatusFromDetail(bookId, status) {
+  const labels = { reading: '읽는 중', finished: '다 읽음', stopped: '중단' };
+  try {
+    await updateBookStatus(bookId, status);
+    showToast(`"${labels[status]}"으로 변경됨`);
+    await openBookDetail(bookId);
+    await refreshHome();
+  } catch (e) {
+    showToast('변경 실패');
+  }
+}
+
+async function deleteBook(bookId) {
+  if (!confirm('이 책을 삭제할까요? 관련 기록도 모두 삭제됩니다.')) return;
+  try {
+    // Delete notes
+    const notesSnap = await db.collection('notes').where('bookId', '==', bookId).get();
+    const batch1 = db.batch();
+    notesSnap.docs.forEach(d => batch1.delete(d.ref));
+    await batch1.commit();
+
+    // Delete readings
+    const readingsSnap = await db.collection('readings').where('bookId', '==', bookId).get();
+    const batch2 = db.batch();
+    readingsSnap.docs.forEach(d => batch2.delete(d.ref));
+    await batch2.commit();
+
+    // Delete book
+    await db.collection('books').doc(bookId).delete();
+    delete booksCache[bookId];
+
+    showToast('삭제 완료');
+    closeModal('detailModal');
+    closeModal('searchModal');
+    await refreshHome();
+  } catch (e) {
+    console.error(e);
+    showToast('삭제 실패');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  CSV EXPORT
+// ══════════════════════════════════════════════
+
+async function exportCSV() {
+  try {
+    showToast('CSV 생성 중...');
+    const books = Object.values(booksCache);
+    const allNotes = [];
+    const allReadings = [];
+
+    // Load all notes and readings
+    const notesSnap = await db.collection('notes').orderBy('createdAt', 'desc').get();
+    notesSnap.forEach(d => allNotes.push({ id: d.id, ...d.data() }));
+
+    const readingsSnap = await db.collection('readings').get();
+    readingsSnap.forEach(d => allReadings.push(d.data()));
+
+    // Build CSV
+    let csv = '﻿'; // BOM for Excel
+    csv += '제목,저자,상태,읽은날짜들,문구/생각,유형,기록날짜\n';
+
+    books.forEach(book => {
+      const bookNotes = allNotes.filter(n => n.bookId === book.id);
+      const bookReadings = allReadings.filter(r => r.bookId === book.id);
+      const readDates = [...new Set(bookReadings.map(r => r.date))].sort().join('; ');
+      const statusLabels = { want: '읽고싶은', reading: '읽는중', finished: '다읽음', stopped: '중단' };
+
+      if (bookNotes.length === 0) {
+        csv += `${csvEscape(book.title)},${csvEscape(book.author||'')},${statusLabels[book.status]||book.status},${csvEscape(readDates)},,, \n`;
+      } else {
+        bookNotes.forEach((n, i) => {
+          const noteDate = n.createdAt ? formatDate(n.createdAt) : '';
+          csv += `${i===0 ? csvEscape(book.title) : ''},${i===0 ? csvEscape(book.author||'') : ''},${i===0 ? (statusLabels[book.status]||book.status) : ''},${i===0 ? csvEscape(readDates) : ''},${csvEscape(n.text)},${n.type==='quote'?'문구':'생각'},${noteDate}\n`;
+        });
+      }
+    });
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `내서재_백업_${todayStr()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('CSV 다운로드 완료!');
+  } catch (e) {
+    console.error(e);
+    showToast('CSV 생성 실패');
+  }
+}
+
+function csvEscape(str) {
+  if (!str) return '';
+  str = String(str);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeAttr(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ══════════════════════════════════════════════
+//  INIT & REFRESH
+// ══════════════════════════════════════════════
+
+async function refreshHome() {
+  await loadAllBooks();
+  await renderHome();
+  await renderCalendar();
+  await renderStats();
+}
+
+async function init() {
+  if (!isConfigured) {
+    document.getElementById('configBanner').style.display = '';
+    document.getElementById('currentBookSection').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚙️</div>
+        <div class="empty-state-text">
+          Firebase와 카카오 API 설정이 필요해요.<br>
+          HTML 파일 상단의 <code>firebaseConfig</code>와<br>
+          <code>KAKAO_API_KEY</code>를 입력해주세요.
+        </div>
+      </div>`;
+    renderCalendar();
+    return;
+  }
+
+  try {
+    await loadAllBooks();
+    await Promise.all([renderHome(), renderCalendar(), renderStats()]);
+  } catch (e) {
+    console.error('Init error:', e);
+    document.getElementById('currentBookSection').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-text">초기화 중 오류가 발생했어요.<br>${escapeHtml(e.message)}</div>
+      </div>`;
+  }
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// Start app
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
