@@ -182,14 +182,41 @@ body {
 }
 .status-btn:hover { border-color: var(--fg-secondary); }
 
-/* Recent notes */
+/* Recent notes carousel */
 .recent-notes { margin-top: 24px; }
-.recent-notes h3 {
+.recent-notes-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.recent-notes-header h3 {
   font-size: 0.8rem; font-weight: 500; color: var(--fg-muted);
-  margin-bottom: 10px; letter-spacing: 0.5px;
+  letter-spacing: 0.5px;
+}
+.recent-notes-pager {
+  display: flex; align-items: center; gap: 6px;
+}
+.recent-notes-pager button {
+  width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%;
+  background: var(--bg-card); color: var(--fg-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; transition: all var(--transition);
+}
+.recent-notes-pager button:hover { background: var(--bg-hover); }
+.recent-notes-pager button:disabled { opacity: 0.3; cursor: default; }
+.recent-notes-pager .pager-info {
+  font-size: 0.65rem; color: var(--fg-muted); min-width: 30px; text-align: center;
+}
+.recent-notes-carousel {
+  overflow: hidden; position: relative;
+}
+.recent-notes-track {
+  display: flex; transition: transform 0.35s ease;
+}
+.recent-notes-page {
+  min-width: 100%; display: flex; flex-direction: column; gap: 8px;
 }
 .note-item {
-  padding: 10px 14px; margin-bottom: 8px;
+  padding: 12px 14px;
   background: var(--bg-card); border-radius: var(--radius-sm);
   border-left: 3px solid var(--accent-soft); font-size: 0.88rem;
 }
@@ -199,6 +226,10 @@ body {
 }
 .note-item-date { font-size: 0.7rem; color: var(--fg-muted); margin-top: 4px; }
 .note-item-text { color: var(--fg); line-height: 1.5; word-break: break-word; }
+.note-item-book {
+  font-size: 0.65rem; color: var(--fg-muted); margin-top: 3px;
+  font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .note-delete {
   float: right; border: none; background: none; color: var(--fg-muted);
   cursor: pointer; font-size: 0.75rem; padding: 2px 4px;
@@ -836,6 +867,15 @@ async function loadBookNotes(bookId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+async function loadAllRecentNotes(limit = 30) {
+  if (!db) return [];
+  const snap = await db.collection('notes')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 async function loadMonthReadings(year, month) {
   if (!db) return [];
   const start = `${year}-${String(month).padStart(2,'0')}-01`;
@@ -1080,8 +1120,7 @@ async function renderHome() {
 
     currentBook = readingBooks[0];
     const checked = await isCheckedInToday(currentBook.id);
-    const recentNotes = await loadBookNotes(currentBook.id);
-    const recent5 = recentNotes.slice(0, 5);
+    const allRecentNotes = await loadAllRecentNotes(30);
 
     let otherBooksHtml = '';
     if (readingBooks.length > 1) {
@@ -1135,20 +1174,42 @@ async function renderHome() {
           </div>
         </div>
 
-        ${recent5.length > 0 ? `
+        ${allRecentNotes.length > 0 ? `
           <div class="recent-notes">
-            <h3>최근 기록</h3>
-            ${recent5.map(n => `
-              <div class="note-item ${n.type === 'thought' ? 'thought' : ''}">
-                <button class="note-delete" onclick="removeNote('${n.id}')">삭제</button>
-                <div class="note-item-type">${n.type === 'quote' ? '📝 문구' : '💭 생각'}</div>
-                <div class="note-item-text">${escapeHtml(n.text)}</div>
-                <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
+            <div class="recent-notes-header">
+              <h3>최근 기록</h3>
+              <div class="recent-notes-pager">
+                <button onclick="moveNotesPage(-1)" id="notesPrev" disabled>◀</button>
+                <span class="pager-info" id="notesPageInfo"></span>
+                <button onclick="moveNotesPage(1)" id="notesNext">▶</button>
               </div>
-            `).join('')}
+            </div>
+            <div class="recent-notes-carousel">
+              <div class="recent-notes-track" id="notesTrack">
+                ${(() => {
+                  const pages = [];
+                  for (let i = 0; i < allRecentNotes.length; i += 3) {
+                    const pageNotes = allRecentNotes.slice(i, i + 3);
+                    pages.push('<div class="recent-notes-page">' + pageNotes.map(n => {
+                      const bookTitle = booksCache[n.bookId] ? booksCache[n.bookId].title : '';
+                      return `
+                        <div class="note-item ${n.type === 'thought' ? 'thought' : ''}">
+                          <button class="note-delete" onclick="removeNote('${n.id}')">삭제</button>
+                          <div class="note-item-type">${n.type === 'quote' ? '📝 문구' : '💭 생각'}</div>
+                          <div class="note-item-text">${escapeHtml(n.text)}</div>
+                          <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
+                          ${bookTitle ? `<div class="note-item-book">― ${escapeHtml(bookTitle)}</div>` : ''}
+                        </div>`;
+                    }).join('') + '</div>');
+                  }
+                  return pages.join('');
+                })()}
+              </div>
+            </div>
           </div>
         ` : ''}
       </div>`;
+    initNotesCarousel();
   } catch (e) {
     console.error('renderHome error:', e);
     section.innerHTML = `<div class="empty-state"><div class="empty-state-text">데이터를 불러오는 중 오류가 발생했어요.<br>Firebase 설정을 확인해주세요.</div></div>`;
@@ -1181,6 +1242,50 @@ async function saveNote(bookId, type) {
     showToast('저장 실패');
   }
 }
+
+// ── Notes carousel ──
+let notesCurrentPage = 0;
+function initNotesCarousel() {
+  notesCurrentPage = 0;
+  updateNotesCarousel();
+}
+function moveNotesPage(dir) {
+  const track = document.getElementById('notesTrack');
+  if (!track) return;
+  const totalPages = track.children.length;
+  notesCurrentPage = Math.max(0, Math.min(totalPages - 1, notesCurrentPage + dir));
+  updateNotesCarousel();
+}
+function updateNotesCarousel() {
+  const track = document.getElementById('notesTrack');
+  const prev = document.getElementById('notesPrev');
+  const next = document.getElementById('notesNext');
+  const info = document.getElementById('notesPageInfo');
+  if (!track) return;
+  const totalPages = track.children.length;
+  track.style.transform = `translateX(-${notesCurrentPage * 100}%)`;
+  if (prev) prev.disabled = notesCurrentPage === 0;
+  if (next) next.disabled = notesCurrentPage >= totalPages - 1;
+  if (info) info.textContent = `${notesCurrentPage + 1}/${totalPages}`;
+}
+// Swipe support for notes carousel
+(function() {
+  let sx = 0, sy = 0, swiping = false;
+  document.addEventListener('touchstart', e => {
+    const carousel = e.target.closest('.recent-notes-carousel');
+    if (!carousel) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; swiping = true;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!swiping) return;
+    swiping = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      moveNotesPage(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+})();
 
 async function removeNote(noteId) {
   if (!confirm('이 기록을 삭제할까요?')) return;
