@@ -517,6 +517,104 @@ body {
   padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
 
+/* ── Review (완독 노트) ── */
+.review-section { margin-top: 20px; }
+.review-section h3 {
+  font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.review-textarea {
+  width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-input); color: var(--fg);
+  font-family: inherit; font-size: 0.88rem; line-height: 1.7; resize: vertical;
+  transition: border-color var(--transition);
+}
+.review-textarea:focus { outline: none; border-color: var(--accent); }
+.review-textarea::placeholder { color: var(--fg-muted); }
+.review-save-row {
+  display: flex; justify-content: flex-end; margin-top: 8px;
+}
+.review-save-btn {
+  padding: 6px 16px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  transition: background var(--transition);
+}
+.review-save-btn:hover { background: var(--accent-hover); }
+.review-display {
+  background: var(--bg-input); border-radius: var(--radius-sm);
+  padding: 14px; font-size: 0.88rem; line-height: 1.8;
+  color: var(--fg); white-space: pre-wrap; word-break: break-word;
+  position: relative;
+}
+.review-edit-btn {
+  position: absolute; top: 8px; right: 8px;
+  border: none; background: none; color: var(--fg-muted);
+  cursor: pointer; font-size: 0.75rem; padding: 2px 6px;
+}
+.review-edit-btn:hover { color: var(--accent); }
+
+/* ── Tags ── */
+.tags-section { margin-top: 16px; }
+.tags-section h3 {
+  font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 14px;
+  background: var(--accent-soft); color: var(--fg);
+  font-size: 0.75rem; font-weight: 500;
+}
+.tag-chip-remove {
+  border: none; background: none; color: var(--fg-muted);
+  cursor: pointer; font-size: 0.7rem; padding: 0; line-height: 1;
+}
+.tag-chip-remove:hover { color: var(--accent); }
+.tag-input-row { display: flex; gap: 6px; }
+.tag-input {
+  flex: 1; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-input); color: var(--fg);
+  font-family: inherit; font-size: 0.8rem;
+}
+.tag-input:focus { outline: none; border-color: var(--accent); }
+.tag-add-btn {
+  padding: 6px 12px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-text);
+  font-family: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.tag-suggestions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.tag-suggest-chip {
+  padding: 3px 8px; border: 1px dashed var(--border); border-radius: 12px;
+  background: none; color: var(--fg-secondary); font-size: 0.7rem;
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.tag-suggest-chip:hover { border-color: var(--accent); color: var(--accent); }
+.related-books { margin-top: 12px; }
+.related-books h4 {
+  font-size: 0.78rem; font-weight: 500; color: var(--fg-secondary);
+  margin-bottom: 8px;
+}
+.related-book-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background var(--transition);
+}
+.related-book-item:hover { background: var(--bg-hover); }
+.related-book-item img {
+  width: 36px; height: 52px; object-fit: cover; border-radius: 3px;
+}
+.related-book-info { flex: 1; min-width: 0; }
+.related-book-info .title {
+  font-size: 0.82rem; font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.related-book-info .shared-tags {
+  font-size: 0.68rem; color: var(--fg-muted); margin-top: 2px;
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -1482,10 +1580,17 @@ async function openDayModal(dateStr) {
 async function addDayReading(bookId, dateStr) {
   try {
     await checkInDate(bookId, dateStr);
+    // 읽고 싶은(want) 상태면 자동으로 읽는 중(reading)으로 변경
+    const book = booksCache[bookId];
+    if (book && book.status === 'want') {
+      await db.collection('books').doc(bookId).update({ status: 'reading', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      booksCache[bookId].status = 'reading';
+    }
     showToast('추가 완료! ✓');
     await openDayModal(dateStr); // refresh modal
     await renderCalendar();
     await renderStats();
+    await renderHome();
   } catch (e) {
     console.error(e);
     showToast('추가 실패');
@@ -1725,6 +1830,59 @@ async function openBookDetail(bookId) {
         </div>
       ` : ''}
 
+      ${book.status === 'finished' || book.review ? `
+        <div id="reviewSection" class="review-section">
+          <h3>📖 완독 노트</h3>
+          ${book.review ? `
+            <div class="review-display">${escapeHtml(book.review).replace(/\n/g, '<br>')}</div>
+            <button class="review-edit-btn" onclick="editReview('${bookId}')">✏️ 수정</button>
+          ` : `
+            <textarea id="reviewTextarea" class="review-textarea" placeholder="이 책에 대한 생각을 자유롭게 적어보세요..."></textarea>
+            <div class="review-save-row">
+              <button class="review-save-btn" onclick="saveReview('${bookId}')">저장</button>
+            </div>
+          `}
+        </div>
+      ` : ''}
+
+      <div class="tags-section">
+        <h3>🏷 태그</h3>
+        <div class="tags-wrap">
+          ${(book.tags || []).map(t => `
+            <span class="tag-chip">
+              #${escapeHtml(t)}
+              <button class="tag-chip-remove" onclick="removeTag('${bookId}','${escapeAttr(t)}')" title="삭제">×</button>
+            </span>
+          `).join('')}
+          ${(book.tags || []).length === 0 ? '<span style="font-size:0.75rem;color:var(--fg-muted)">태그를 추가해보세요</span>' : ''}
+        </div>
+        <div class="tag-input-row">
+          <input type="text" id="tagInput" class="tag-input" placeholder="태그 입력" maxlength="20" onkeydown="handleTagInputKey(event,'${bookId}')">
+          <button class="tag-add-btn" onclick="addTag('${bookId}')">추가</button>
+        </div>
+        ${renderTagSuggestions(bookId)}
+        ${(() => {
+          const related = getRelatedBooks(bookId);
+          if (related.length === 0) return '';
+          return `
+            <div class="related-books">
+              <h4 style="font-size:0.8rem;color:var(--fg-muted);margin:0 0 8px">📚 비슷한 태그의 책</h4>
+              ${related.slice(0, 5).map(r => `
+                <div class="related-book-item" onclick="openBookDetail('${r.id}')">
+                  ${r.thumbnail
+                    ? `<img src="${escapeAttr(r.thumbnail)}" alt="" style="width:32px;height:46px;border-radius:3px;object-fit:cover" onerror="this.outerHTML='<div style=\\'width:32px;height:46px;background:var(--bg-input);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.7rem\\'>📕</div>'">`
+                    : '<div style="width:32px;height:46px;background:var(--bg-input);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.7rem">📕</div>'}
+                  <div class="related-book-info">
+                    <div style="font-size:0.8rem;font-weight:600">${escapeHtml(r.title)}</div>
+                    <div style="font-size:0.65rem;color:var(--fg-muted)">${r.sharedTags.map(t => '#' + escapeHtml(t)).join(' ')}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        })()}
+      </div>
+
       <div class="status-actions" style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
         ${book.status !== 'reading' ? `<button class="status-btn" onclick="changeStatusFromDetail('${bookId}','reading')">📖 읽기 시작</button>` : ''}
         ${book.status !== 'finished' ? `<button class="status-btn" onclick="changeStatusFromDetail('${bookId}','finished')">📗 다 읽음</button>` : ''}
@@ -1755,6 +1913,11 @@ async function changeStatusFromDetail(bookId, status) {
     await updateBookStatus(bookId, status);
     showToast(`"${labels[status]}"으로 변경됨`);
     await openBookDetail(bookId);
+    // 완독 시 자동으로 완독 노트 입력란에 포커스
+    if (status === 'finished') {
+      const ta = document.getElementById('reviewTextarea');
+      if (ta) ta.focus();
+    }
     await refreshHome();
   } catch (e) {
     showToast('변경 실패');
@@ -1791,6 +1954,132 @@ async function deleteBook(bookId) {
 }
 
 // ══════════════════════════════════════════════
+//  완독 노트 & 태그
+// ══════════════════════════════════════════════
+
+async function saveReview(bookId) {
+  const textarea = document.getElementById('reviewTextarea');
+  if (!textarea) return;
+  const text = textarea.value.trim();
+  if (!text) { showToast('내용을 입력해주세요'); return; }
+  try {
+    await db.collection('books').doc(bookId).update({
+      review: text,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    booksCache[bookId].review = text;
+    showToast('완독 노트 저장 완료 ✓');
+    await openBookDetail(bookId);
+  } catch (e) {
+    console.error(e);
+    showToast('저장 실패');
+  }
+}
+
+function editReview(bookId) {
+  const book = booksCache[bookId];
+  if (!book) return;
+  const section = document.getElementById('reviewSection');
+  if (!section) return;
+  section.innerHTML = `
+    <h3>📖 완독 노트</h3>
+    <textarea id="reviewTextarea" class="review-textarea" placeholder="이 책에 대한 생각을 자유롭게 적어보세요...">${escapeHtml(book.review || '')}</textarea>
+    <div class="review-save-row">
+      <button class="review-save-btn" onclick="saveReview('${bookId}')">저장</button>
+      <button class="review-save-btn" style="background:var(--bg-input);color:var(--fg)" onclick="openBookDetail('${bookId}')">취소</button>
+    </div>
+  `;
+  document.getElementById('reviewTextarea').focus();
+}
+
+async function addTag(bookId) {
+  const input = document.getElementById('tagInput');
+  if (!input) return;
+  const tag = input.value.trim().replace(/[#,]/g, '');
+  if (!tag) return;
+
+  const book = booksCache[bookId];
+  const tags = book.tags || [];
+  if (tags.includes(tag)) { showToast('이미 추가된 태그예요'); input.value = ''; return; }
+
+  tags.push(tag);
+  try {
+    await db.collection('books').doc(bookId).update({
+      tags: tags,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    booksCache[bookId].tags = tags;
+    input.value = '';
+    await openBookDetail(bookId);
+  } catch (e) {
+    console.error(e);
+    showToast('태그 추가 실패');
+  }
+}
+
+async function removeTag(bookId, tag) {
+  const book = booksCache[bookId];
+  if (!book) return;
+  const tags = (book.tags || []).filter(t => t !== tag);
+  try {
+    await db.collection('books').doc(bookId).update({
+      tags: tags,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    booksCache[bookId].tags = tags;
+    await openBookDetail(bookId);
+  } catch (e) {
+    console.error(e);
+    showToast('태그 삭제 실패');
+  }
+}
+
+function getAllTags() {
+  const tagSet = new Set();
+  Object.values(booksCache).forEach(b => {
+    (b.tags || []).forEach(t => tagSet.add(t));
+  });
+  return [...tagSet].sort();
+}
+
+function getRelatedBooks(bookId) {
+  const book = booksCache[bookId];
+  if (!book || !book.tags || book.tags.length === 0) return [];
+  const results = [];
+  Object.values(booksCache).forEach(b => {
+    if (b.id === bookId) return;
+    const shared = (b.tags || []).filter(t => book.tags.includes(t));
+    if (shared.length > 0) {
+      results.push({ ...b, sharedTags: shared });
+    }
+  });
+  results.sort((a, b) => b.sharedTags.length - a.sharedTags.length);
+  return results;
+}
+
+function renderTagSuggestions(bookId) {
+  const book = booksCache[bookId];
+  const currentTags = book.tags || [];
+  const allTags = getAllTags().filter(t => !currentTags.includes(t));
+  if (allTags.length === 0) return '';
+  return `
+    <div class="tag-suggestions">
+      <span style="font-size:0.7rem;color:var(--fg-muted)">추천:</span>
+      ${allTags.slice(0, 8).map(t =>
+        `<button class="tag-suggest-chip" onclick="document.getElementById('tagInput').value='${escapeAttr(t)}';addTag('${bookId}')">${escapeHtml(t)}</button>`
+      ).join('')}
+    </div>
+  `;
+}
+
+function handleTagInputKey(e, bookId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addTag(bookId);
+  }
+}
+
+// ══════════════════════════════════════════════
 //  CSV EXPORT
 // ══════════════════════════════════════════════
 
@@ -1810,20 +2099,22 @@ async function exportCSV() {
 
     // Build CSV
     let csv = '﻿'; // BOM for Excel
-    csv += '제목,저자,상태,읽은날짜들,문구/생각,유형,기록날짜\n';
+    csv += '제목,저자,상태,읽은날짜들,문구/생각,유형,기록날짜,완독노트,태그\n';
 
     books.forEach(book => {
       const bookNotes = allNotes.filter(n => n.bookId === book.id);
       const bookReadings = allReadings.filter(r => r.bookId === book.id);
       const readDates = [...new Set(bookReadings.map(r => r.date))].sort().join('; ');
       const statusLabels = { want: '읽고싶은', reading: '읽는중', finished: '다읽음', stopped: '중단' };
+      const reviewText = book.review || '';
+      const tagsText = (book.tags || []).join('; ');
 
       if (bookNotes.length === 0) {
-        csv += `${csvEscape(book.title)},${csvEscape(book.author||'')},${statusLabels[book.status]||book.status},${csvEscape(readDates)},,, \n`;
+        csv += `${csvEscape(book.title)},${csvEscape(book.author||'')},${statusLabels[book.status]||book.status},${csvEscape(readDates)},,,${' '},${csvEscape(reviewText)},${csvEscape(tagsText)}\n`;
       } else {
         bookNotes.forEach((n, i) => {
           const noteDate = n.createdAt ? formatDate(n.createdAt) : '';
-          csv += `${i===0 ? csvEscape(book.title) : ''},${i===0 ? csvEscape(book.author||'') : ''},${i===0 ? (statusLabels[book.status]||book.status) : ''},${i===0 ? csvEscape(readDates) : ''},${csvEscape(n.text)},${n.type==='quote'?'문구':'생각'},${noteDate}\n`;
+          csv += `${i===0 ? csvEscape(book.title) : ''},${i===0 ? csvEscape(book.author||'') : ''},${i===0 ? (statusLabels[book.status]||book.status) : ''},${i===0 ? csvEscape(readDates) : ''},${csvEscape(n.text)},${n.type==='quote'?'문구':'생각'},${noteDate},${i===0 ? csvEscape(reviewText) : ''},${i===0 ? csvEscape(tagsText) : ''}\n`;
         });
       }
     });
