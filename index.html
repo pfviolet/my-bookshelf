@@ -230,11 +230,25 @@ body {
   font-size: 0.65rem; color: var(--fg-muted); margin-top: 3px;
   font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.note-delete {
-  float: right; border: none; background: none; color: var(--fg-muted);
+.note-actions { float: right; display: flex; gap: 4px; }
+.note-delete, .note-edit {
+  border: none; background: none; color: var(--fg-muted);
   cursor: pointer; font-size: 0.75rem; padding: 2px 4px;
 }
 .note-delete:hover { color: var(--accent); }
+.note-edit:hover { color: var(--tag-reading); }
+.note-edit-area {
+  width: 100%; min-height: 60px; padding: 8px; border: 1px solid var(--accent);
+  border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem;
+  background: var(--bg-input); color: var(--fg); resize: vertical; line-height: 1.5;
+}
+.note-edit-btns { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+.note-edit-btns button {
+  padding: 4px 12px; border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 0.75rem; cursor: pointer;
+}
+.note-save-btn { background: var(--accent); color: var(--accent-text); }
+.note-cancel-btn { background: var(--bg-input); color: var(--fg-secondary); }
 
 /* ── Empty State ── */
 .empty-state {
@@ -1802,8 +1816,11 @@ async function openBookDetail(bookId) {
         <div class="detail-notes">
           <h3>📝 마음에 남은 문구 (${quotes.length})</h3>
           ${quotes.map(n => `
-            <div class="note-item">
-              <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+            <div class="note-item" id="note-${n.id}">
+              <div class="note-actions">
+                <button class="note-edit" onclick="startEditNote('${n.id}','${bookId}')">수정</button>
+                <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+              </div>
               <div class="note-item-text">${escapeHtml(n.text)}</div>
               <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
             </div>
@@ -1815,8 +1832,11 @@ async function openBookDetail(bookId) {
         <div class="detail-notes" style="margin-top:20px">
           <h3>💭 떠오르는 생각 (${thoughts.length})</h3>
           ${thoughts.map(n => `
-            <div class="note-item thought">
-              <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+            <div class="note-item thought" id="note-${n.id}">
+              <div class="note-actions">
+                <button class="note-edit" onclick="startEditNote('${n.id}','${bookId}')">수정</button>
+                <button class="note-delete" onclick="removeNoteAndRefreshDetail('${n.id}','${bookId}')">삭제</button>
+              </div>
               <div class="note-item-text">${escapeHtml(n.text)}</div>
               <div class="note-item-date">${n.createdAt ? formatDateKR(formatDate(n.createdAt)) : ''}</div>
             </div>
@@ -1893,6 +1913,40 @@ async function openBookDetail(bookId) {
   } catch (e) {
     console.error(e);
     body.innerHTML = '<div class="empty-state"><div class="empty-state-text">기록을 불러오는 데 실패했어요.</div></div>';
+  }
+}
+
+async function startEditNote(noteId, bookId) {
+  const noteEl = document.getElementById('note-' + noteId);
+  if (!noteEl) return;
+  const textEl = noteEl.querySelector('.note-item-text');
+  const actionsEl = noteEl.querySelector('.note-actions');
+  if (!textEl) return;
+  const currentText = textEl.textContent;
+  if (actionsEl) actionsEl.style.display = 'none';
+  textEl.outerHTML = `
+    <textarea class="note-edit-area" id="editArea-${noteId}">${escapeHtml(currentText)}</textarea>
+    <div class="note-edit-btns">
+      <button class="note-cancel-btn" onclick="openBookDetail('${bookId}')">취소</button>
+      <button class="note-save-btn" onclick="saveEditNote('${noteId}','${bookId}')">저장</button>
+    </div>
+  `;
+  const area = document.getElementById('editArea-' + noteId);
+  if (area) { area.focus(); area.setSelectionRange(area.value.length, area.value.length); }
+}
+
+async function saveEditNote(noteId, bookId) {
+  const area = document.getElementById('editArea-' + noteId);
+  if (!area) return;
+  const newText = area.value.trim();
+  if (!newText) { showToast('내용을 입력해주세요'); return; }
+  try {
+    await db.collection('notes').doc(noteId).update({ text: newText });
+    showToast('수정 완료 ✓');
+    await openBookDetail(bookId);
+  } catch (e) {
+    console.error(e);
+    showToast('수정 실패');
   }
 }
 
