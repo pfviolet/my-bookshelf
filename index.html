@@ -1854,8 +1854,10 @@ async function openBookDetail(bookId) {
         <div id="reviewSection" class="review-section">
           <h3>📖 완독 노트</h3>
           ${book.review ? `
-            <div class="review-display">${escapeHtml(book.review).replace(/\n/g, '<br>')}</div>
-            <button class="review-edit-btn" onclick="editReview('${bookId}')">✏️ 수정</button>
+            <div class="review-display">
+              <button class="review-edit-btn" onclick="editReview('${bookId}')">✏️ 수정</button>
+              ${escapeHtml(book.review).replace(/\n/g, '<br>')}
+            </div>
           ` : `
             <textarea id="reviewTextarea" class="review-textarea" placeholder="이 책에 대한 생각을 자유롭게 적어보세요..."></textarea>
             <div class="review-save-row">
